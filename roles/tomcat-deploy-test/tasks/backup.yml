@@ -1,0 +1,57 @@
+---
+# 创建备份目录
+- name: Create Histroy Archive Directory
+  file:
+    dest: "{{ project.target.HISTORY_ARCHIVR_DIR }}/{{ deploy_time }}"
+    state: directory
+    owner: "{{ project.target.TOMCAT_USER }}"
+    group: "{{ project.target.TOMCAT_USER }}"
+    recurse: yes
+
+
+ 
+# 压缩文件到备份目录下
+
+- name: Compress and backup files
+  archive:
+    path:
+     - "{{ PROJECT_BASE }}/*"
+    dest: "{{ project.target.HISTORY_ARCHIVR_DIR }}/{{ deploy_time }}/{{ PROJECT }}.zip" 
+    format: zip
+    owner: "{{ project.target.TOMCAT_USER }}"
+    group: "{{ project.target.TOMCAT_USER }}"
+
+# 创建本地用户:
+- name: Create {{ project.target.TOMCAT_USER }} user
+  user: name={{ project.target.TOMCAT_USER }}
+  delegate_to: localhost
+
+# 创建本地目录
+- name: Create Histroy Archive Directory
+  file:
+    dest: "{{ project.local.deploy_release_log  }}/{{ deploy_time }}"
+    state: directory
+    owner: "{{ project.target.TOMCAT_USER }}"
+    group: "{{ project.target.TOMCAT_USER }}"
+    recurse: yes
+  delegate_to: localhost 
+
+
+- name: Write Deploy release log
+  blockinfile:
+    path: "{{ project.local.deploy_release_log }}/{{ deploy_time }}/backup.log"
+    block: |-
+      {{ release_log | to_nice_json(indent=2) }}
+    create: yes
+  delegate_to: localhost
+  run_once: true
+  vars:
+    release_log:
+      target: "{{ ansible_play_hosts | join(':') }}"
+      project: "{{ PROJECT }}"
+      run_user: "{{ RUN_USER }}"
+      backup_dir: "{{ project.target.HISTORY_ARCHIVR_DIR }}/{{ deploy_time }}"
+      backup_file: "{{ project.target.HISTORY_ARCHIVR_DIR }}/{{ deploy_time }}/{{ PROJECT }}.zip"
+      project_dir: "{{ PROJECT_BASE }}"
+      backup_time: "{{ deploy_time }}"
+      env: ""

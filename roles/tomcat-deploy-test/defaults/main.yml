@@ -1,0 +1,39 @@
+---
+# base info
+# JOB_NAME等信息直接从环境变量读取，而不是之前那样通过exra vars导入，少了很多不必要的参数填写
+#JOB_NAME: "{{ lookup('env','JOB_NAME') }}"
+JOB_NAME: "TEST_web-8080-nc"
+TOMCAT_HOME: "/usr/share/tomcat"
+# 将JOB_NAME切割出各个信息
+PROJECT: "{{ JOB_NAME.split('_')[-1] }}"  #web-8080-nc
+PROJECT_BASE: "/data/{{ PROJECT }}"   #/data/web-8080-nc
+ENV: "{{ JOB_NAME.split('_')[0] }}" # TEST
+RUN_USER: "{{ tomcat_user | default('devops') }}" #devops
+ 
+# project info
+project:
+  public:
+    JAVA_HOME: "{{ lookup('env','java_home') | default('/usr/local/java8') }}"
+    GIT_CONF_REPO: "https://github.com/xiaoluoge11/java_test.git"
+    JAVA_OPTS: "{{ lookup('env','JAVA_OPTS') | default('-server -Xms2048M -Xmx2048M') }}"
+ 
+  local:
+    # 备份信息日志路径
+    deploy_release_log: "/data/deploy_release_log/{{ ENV }}/{{ PROJECT }}"
+    # 构建后的代码路径
+    CODE_PATH: "/var/lib/jenkins/workspace/{{ JOB_NAME }}/target" #TEST_web-8080-nc
+ 
+  target:
+    # 实例相关配置
+    CATALINA_HOME: "{{ TOMCAT_HOME }}"
+    CATALINA_BASE: "/usr/local/tomcat/{{ PROJECT }}"
+    CATALINA_LOGBASE: "/usr/local/tomcat/{{ PROJECT }}/logs"
+    #tomcat虚拟路径，默认为空
+    TOMCAT_VIRTUAL_PATH: "{{ lookup('env','tomcat_virtual_path') }}"
+    CODE_PATH: "{{ PROJECT_BASE }}"
+    TOMCAT_USER: "{{ tomcat_user | default('devops') }}"
+    TOMCAT_PORT: "{{ PROJECT.split('-')[1] }}"
+    # 备份目录
+    HISTORY_ARCHIVR_DIR: "/data/deploy_release_library/{{ ENV }}/{{ PROJECT }}"
+    # 应用日志(不是必须的)
+    LOGPATH: "/log/{{ PROJECT.split('-')[0] }}/{{ PROJECT }}"

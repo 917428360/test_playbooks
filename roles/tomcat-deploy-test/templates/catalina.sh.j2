@@ -1,0 +1,153 @@
+#!/bin/bash
+# Provides:          {{ PROJECT }}
+# chkconfig:         - 55 25
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Start Tomcat.
+# Description:       Start the Tomcat servlet engine.
+# Author:            本末丶
+### END INIT INFO
+ 
+# Source function library.
+. /etc/rc.d/init.d/functions
+ 
+program="{{ PROJECT }}"
+export TOMCAT_USER="{{ project.target.TOMCAT_USER }}"
+export CATALINA_PID="{{ project.target.CATALINA_BASE }}/bin/$program.pid"
+export TOMCAT_HOME={{ TOMCAT_HOME }}
+export CATALINA_HOME=$TOMCAT_HOME
+export CATALINA_BASE={{ project.target.CATALINA_BASE }}
+export CATALINA_LOGBASE={{ project.target.CATALINA_LOGBASE }}
+ 
+export JAVA_OPTS="{{ project.public.JAVA_OPTS }} -Dcatalina.logbase=$CATALINA_LOGBASE -Djava.security.egd=file:/dev/./urandom"
+ 
+{% if project.public.JAVA_HOME != '' %}
+export JAVA_HOME={{ project.public.JAVA_HOME }}
+{% else %}
+source /etc/profile
+{% endif %}
+# Set Tomcat environment.
+export CLASSPATH=.:$JAVA_HOME/lib/dt.jar:$JAVA_HOME/lib/tools.jar:$CATALINA_HOME
+export CATALINA_OUT=$CATALINA_LOGBASE/catalina.out
+export PATH=$PATH:$JAVA_HOME/bin:/usr/bin:/usr/lib/bin
+ 
+# locale环境，防止中文写日志乱码问题
+export LANG=en_US.UTF-8
+export LC_CTYPE="en_US.UTF-8"
+export LC_NUMERIC="en_US.UTF-8"
+export LC_TIME="en_US.UTF-8"
+export LC_COLLATE="en_US.UTF-8"
+export LC_MONETARY="en_US.UTF-8"
+export LC_MESSAGES="en_US.UTF-8"
+export LC_PAPER="en_US.UTF-8"
+export LC_NAME="en_US.UTF-8"
+export LC_ADDRESS="en_US.UTF-8"
+export LC_TELEPHONE="en_US.UTF-8"
+export LC_MEASUREMENT="en_US.UTF-8"
+export LC_IDENTIFICATION="en_US.UTF-8"
+export LC_ALL=
+ 
+# cache
+cache_dir="${CATALINA_BASE}/work"
+ 
+# check --no-daemonize option
+args=$2
+ 
+# sctipt
+catalinaScript="${TOMCAT_HOME}/bin/catalina.sh"
+ 
+get_pid() {
+     ps -eo pid,cmd | grep java | grep "${CATALINA_BASE}" | grep -Pv "grep|python" | awk '{print $1}'
+}
+ 
+run_program() {
+    if [[ "${args}"x == "--no-daemonize"x ]];then
+        ${catalinaScript} start 2>&1 | tee -a $CATALINA_OUT
+        tailf $CATALINA_OUT
+    else
+        nohup ${catalinaScript} start &>> $CATALINA_OUT
+        return $?
+    fi
+}
+ 
+run_or_not() {
+    pid=$(get_pid)
+    if [[ ! ${pid} ]];then
+        return 1
+    else
+	return 0
+    fi
+}
+ 
+start() {
+    run_or_not
+    if [[ $? -eq 0 ]];then
+        pid=$(get_pid)
+        success;echo -e "[\e[0;32m${pid}\e[0m] Tomcat ${program} is running..."
+    else
+        echo -n 'Start Tomcat.'
+        run_program
+        if [[ $? -eq 0 ]];then
+            sleep 5
+            pid=$(get_pid)
+            if [[ "$pid"x != x ]];then
+                flag=success
+            else
+                flag=failure
+                $flag;echo -e "Success Start Tomcat ${program}, but it exists.!"
+                return 1
+            fi
+        else
+            flag=failure
+        fi
+        $flag;echo -e "[\e[0;32m$pid\e[0m] Start Tomcat ${program}"
+    fi
+}
+ 
+stop() {
+    run_or_not
+    if [[ $? -eq 0 ]];then
+        ${catalinaScript} stop |& tee -a $CATALINA_OUT
+        sleep 5
+        run_or_not
+        if [[ $? -eq 0 ]];then
+            pid=$(get_pid)
+	    kill -9 $pid
+            echo -e "Stop Failed...Killing Process [\e[0;32m$pid\e[0m]..."
+        fi
+	success;echo -e "Stop Tomcat $program"
+    else
+        failure;echo -e "Tomcat $program is not running."
+    fi
+}
+ 
+status() {
+    run_or_not
+    if [[ $? -eq 0 ]];then
+	    pid=$(get_pid)
+	    success;echo -e "[\e[0;32m${pid}\e[0m] Tomcat $program is running..."
+	    return 0
+    else
+	    failure;echo -e "Tomcat $program not running."
+	    return 1
+    fi
+}
+ 
+case $1 in
+    start)
+	    start
+	    ;;
+    stop)
+	    stop
+	    ;;
+    status)
+	    status
+	    ;;
+    restart)
+	    stop
+	    start
+	    ;;
+    *)
+        echo "Usage: $0 {start [--no-daemonize]|stop|status|restart}"
+        return 1
+esac

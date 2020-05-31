@@ -1,0 +1,17 @@
+[Unit]
+Description={{ PROJECT }}
+After=network.target
+ 
+[Service]
+PIDFile={{ project.target.CATALINA_BASE }}/bin/{{ PROJECT}}.pid
+ExecStart={{ project.target.CATALINA_BASE }}/bin/catalina.sh start --no-daemonize
+ExecStop={{ project.target.CATALINA_BASE }}/bin/catalina.sh stop
+#WorkingDirectory={{ project.target.CATALINA_BASE }}
+#Restart=on-failure
+#RestartSec=30
+User=root
+Group=root
+ 
+[Install]
+WantedBy=multi-user.target
+

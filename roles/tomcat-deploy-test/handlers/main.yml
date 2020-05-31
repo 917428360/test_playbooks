@@ -1,0 +1,9 @@
+---
+- name: 7 Restart Tomcat
+  systemd: name={{ PROJECT }} state=restarted enabled=yes daemon_reload=yes
+ 
+# 因为我们是root过去的，6指定下become到运行账户启动
+- name: 6 Restart Tomcat
+  service: name={{ PROJECT }} pattern=/etc/init.d/{{ PROJECT }} state=restarted sleep=5 enabled=yes
+  become_user: "{{ project.target.TOMCAT_USER }}"
+  become: yes

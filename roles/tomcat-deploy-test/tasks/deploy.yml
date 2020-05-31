@@ -1,0 +1,9 @@
+---
+# 同步构建后的代码
+- name: "Sync {{ project.local.CODE_PATH }} >> {{ project.target.CODE_PATH }}"
+  synchronize:
+    src: "{{ project.local.CODE_PATH }}/{{ PROJECT }}.war"
+    dest: "{{ project.target.CODE_PATH }}"
+    delete: yes
+  notify:
+  - "{{ ansible_distribution_major_version }} Restart Tomcat"

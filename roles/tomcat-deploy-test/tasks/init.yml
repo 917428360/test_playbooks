@@ -1,0 +1,75 @@
+---
+# 创建运行账户
+- name: Create {{ project.target.TOMCAT_USER }} user
+  user: name={{ project.target.TOMCAT_USER }}
+ 
+#检查jdk是否安装
+- name: Verify that jdk installed
+  command: "/usr/local/java8/bin/java -version"
+  register: check_jdk
+  failed_when: false
+- debug: var=check_jdk
+
+# name: Copy jdk
+- name: Install jdk
+  unarchive:
+    src: jdk8.tar.gz
+    dest: /usr/local
+  register: sync_jdk
+  when: check_jdk.rc != 0
+  
+#配置jdk环境变量:
+- name: config jdk
+  shell: /bin/echo {{ item }} >> /etc/profile && source /etc/profile
+  with_items:
+    - export JAVA_HOME=/usr/local/java8
+    - export JRE_HOME=/usr/local/java8/jre
+    - export CLASSPATH=.:\$JAVA_HOME/lib/dt.jar:$JAVA_HOME/lib/tools.jar:\$JRE_HOME/lib:\$CLASSPATH
+    - export PATH=\$JAVA_HOME/bin:\$PATH
+  when: check_jdk.rc != 0
+
+# 检查tomcat是否安装
+- name: Verify that tomcat installed
+  command: "{{ TOMCAT_HOME }}/bin/catalina.sh version"
+  environment:
+    JAVA_HOME: "{{ project.public.JAVA_HOME }}"
+  register: check_install
+  failed_when: false
+ 
+# 没装就直接解压过去
+- name: Install tomcat
+  unarchive:
+    src: tomcat.tar.gz
+    dest: /usr/share
+  when: check_install.rc != 0
+ 
+# 创建实例目录接口(file循环我嫌慢，shell来的快)
+- name: Create {{ PROJECT }} directory
+  shell: |
+    mkdir /usr/local/tomcat/
+    cp -r {{ TOMCAT_HOME }} {{project.target.CATALINA_BASE}}
+    mkdir {{ project.target.CODE_PATH }} 
+    chown {{ project.target.TOMCAT_USER }}. -R {{project.target.CATALINA_BASE}} {{ project.target.CODE_PATH }}
+  become: yes 
+ 
+# 推送实例模板文件
+- name: Push {{ PROJECT }} templates
+  template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    mode: "{{ item.mode }}"
+    owner: "{{ project.target.TOMCAT_USER }}"
+    group: "{{ project.target.TOMCAT_USER }}"
+  with_items:
+    - { src: server.xml.j2, dest: "{{ project.target.CATALINA_BASE }}/conf/server.xml", mode: 644 }
+    - { src: catalina.sh.j2, dest: "{{ project.target.CATALINA_BASE }}/bin/catalina.sh", mode: 'u=rwx,g=rx,o=r' }
+  become: yes 
+ 
+# CentOS7使用systemd管理服务
+- name: Copy Systemd script
+  template:
+    src: systemd.service.j2
+    dest: /etc/systemd/system/{{ PROJECT }}.service
+    mode: 0644
+  when: ansible_distribution_major_version|int >= 7
+  become: yes

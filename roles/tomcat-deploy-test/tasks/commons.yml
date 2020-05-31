@@ -1,0 +1,12 @@
+---
+# 设置变量，time相关的不要放入defaults里，因为include是动态取的，会有变化
+- set_fact:
+    deploy_time: "{{ lookup('pipe','date +%Y%m%d%H') }}"
+
+# 检查应用代码是否为空  
+- name: Verify remote code exists
+  shell: ls {{ project.target.CODE_PATH }}/* | wc -l
+  register: code_status
+  failed_when: false
+
+- debug: var=code_status.stdout

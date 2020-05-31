@@ -1,0 +1,5 @@
+---
+- hosts: 10.10.2.99
+ 
+  roles:
+   - { role: tomcat-deploy-test, tags: deploy }

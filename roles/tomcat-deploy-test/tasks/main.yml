@@ -1,0 +1,21 @@
+---
+# 打印变量信息
+- name: show project info
+  debug: var=project
+  failed_when: (project is not defined)
+
+# 初始化实例
+- include_tasks: "init.yml"
+ 
+# 一般任务
+- include_tasks: "commons.yml"
+ 
+# 备份任务,存在代码才备份
+- include_tasks: "backup.yml"
+  when: (code_status.rc == 0)
+ 
+# 发布任务
+- include_tasks: "deploy.yml"
+
+#检测程序是否起来
+
